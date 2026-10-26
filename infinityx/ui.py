@@ -1,0 +1,196 @@
+"""Black-and-red terminal interface. Completed rows stay on screen."""
+
+from __future__ import annotations
+
+from rich.console import Console
+from rich.markup import escape
+from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.table import Table
+from rich.text import Text
+from rich.theme import Theme
+
+from infinityx import AUTHOR, TOOL_NAME, TOOL_SUMMARY, __version__
+from infinityx.analysis import counts, severity_counts, top_findings
+from infinityx.models import CheckResult, ScanOutcome
+
+THEME = Theme(
+    {
+        "accent": "bold red",
+        "ok": "green",
+        "warning": "yellow",
+        "error": "bold red",
+        "muted": "bright_black",
+        "info": "white",
+    }
+)
+
+LOGO = r"""
+██╗███╗   ██╗███████╗██╗███╗   ██╗██╗████████╗██╗   ██╗██╗  ██╗
+██║████╗  ██║██╔════╝██║████╗  ██║██║╚══██╔══╝╚██╗ ██╔╝╚██╗██╔╝
+██║██╔██╗ ██║█████╗  ██║██╔██╗ ██║██║   ██║    ╚████╔╝  ╚███╔╝
+██║██║╚██╗██║██╔══╝  ██║██║╚██╗██║██║   ██║     ╚██╔╝   ██╔██╗
+██║██║ ╚████║██║     ██║██║ ╚████║██║   ██║      ██║   ██╔╝ ██╗
+╚═╝╚═╝  ╚═══╝╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝      ╚═╝   ╚═╝  ╚═╝
+""".rstrip()
+
+STATUS_STYLE = {"OK": "ok", "WARNING": "warning", "FAILED": "error", "SKIPPED": "muted"}
+
+
+def make_console() -> Console:
+    """Return the themed console used by the scanner."""
+    return Console(theme=THEME, highlight=False)
+
+
+def print_banner(console: Console) -> None:
+    """Show the logo, author, and a plain explanation of the tool."""
+    encoding = getattr(getattr(console, "file", None), "encoding", None) or "utf-8"
+    try:
+        LOGO.encode(encoding)
+        art = LOGO
+    except UnicodeEncodeError:
+        art = "INFINITYX OSINT SCANNER"
+    body = Text()
+    body.append(art + "\n", style="bold red")
+    body.append(f"\n{TOOL_NAME}  ·  v{__version__}\n", style="bold white")
+    body.append(f"Created by {AUTHOR}\n\n", style="bold red")
+    body.append(TOOL_SUMMARY + "\n\n", style="white")
+    body.append(
+        "It collects public WHOIS, DNS, HTTP, TLS, hosting, and email-policy data for one domain, "
+        "then writes report.txt, report.json, and report.html. "
+        "It does not guess passwords, exploit services, or scan ports.\n",
+        style="white",
+    )
+    console.print(Panel(body, border_style="red", title="InfinityX", subtitle="passive authorized OSINT"))
+
+
+def ask_domain(console: Console) -> str:
+    """Prompt for a domain without erasing the banner."""
+    console.print("\n[accent]Enter the domain to assess[/] (example.com). Empty input quits.")
+    return console.input("[accent]Domain:[/] ").strip()
+
+
+def confirm_authorization(console: Console, domain: str) -> bool:
+    """Require the exact word AGREE before any collection starts."""
+    console.print(
+        Panel(
+            "\n".join(
+                [
+                    f"Target: {domain}",
+                    "",
+                    "InfinityX will query public WHOIS, public DNS resolvers 1.1.1.1 and 8.8.8.8,",
+                    "the website on ports 80 and 443, certificate transparency via crt.sh,",
+                    "and RIPEstat for ASN and a geolocation estimate.",
+                    "Optional WhatWeb or traceroute runs only when available and, for traceroute, enabled.",
+                    "",
+                    "Continue only if you own this domain or have permission to assess it.",
+                    "Type AGREE in capital letters to confirm. Any other answer cancels the scan.",
+                ]
+            ),
+            title="Authorization",
+            border_style="red",
+        )
+    )
+    answer = console.input("[accent]Type AGREE to confirm authorization:[/] ").strip()
+    return answer == "AGREE"
+
+
+def print_results_header(console: Console) -> None:
+    """Print a persistent header for live check rows."""
+    console.print("\n[accent]Live results[/]  [muted]completed rows stay on screen[/]\n")
+
+
+def print_check_row(console: Console, item: CheckResult) -> None:
+    """Append one finished check. Remote text is escaped so it cannot restyle the UI."""
+    style = STATUS_STYLE.get(item.status, "info")
+    summary = escape(item.summary)
+    name = escape(item.name)
+    console.print(
+        f"[{style}]{item.status:<8}[/] [muted]{item.number:02d}[/] {name:<42} "
+        f"[muted]{item.duration_ms:8.0f} ms[/]  {summary}"
+    )
+
+
+class ProgressDisplay:
+    """A progress bar that does not replace the result rows printed above it."""
+
+    def __init__(self, console: Console, total: int) -> None:
+        self.progress = Progress(
+            SpinnerColumn(style="red"),
+            TextColumn("[accent]{task.description}"),
+            BarColumn(bar_width=36, complete_style="red", finished_style="green"),
+            TextColumn("{task.percentage:>5.1f}%"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        )
+        self.task = None
+        self.total = total
+
+    def __enter__(self) -> "ProgressDisplay":
+        self.progress.start()
+        self.task = self.progress.add_task("Starting", total=self.total)
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:  # type: ignore[no-untyped-def]
+        self.progress.stop()
+
+    def update(self, name: str, completed: int) -> None:
+        """Show the check that is about to run."""
+        if self.task is not None:
+            self.progress.update(self.task, description=escape(name)[:48], completed=completed)
+
+
+def print_dashboard(console: Console, outcome: ScanOutcome, paths: dict[str, str]) -> None:
+    """Show the closing summary without clearing the live results."""
+    status = counts(outcome.results)
+    severity = severity_counts(outcome.results)
+    table = Table(title="Scan summary", border_style="red", header_style="bold red")
+    table.add_column("Item")
+    table.add_column("Value")
+    table.add_row("Target", outcome.domain)
+    table.add_row("Finished", outcome.finished_at.strftime("%Y-%m-%d %H:%M:%S"))
+    table.add_row("Checks", str(len(outcome.results)))
+    table.add_row("OK", str(status["OK"]))
+    table.add_row("Warning", str(status["WARNING"]))
+    table.add_row("Failed", str(status["FAILED"]))
+    table.add_row("Skipped", str(status["SKIPPED"]))
+    for name in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL", "UNASSESSED"):
+        table.add_row(name, str(severity[name]))
+    console.print()
+    console.print(table)
+
+    highlights = Table(title="Findings to read first", border_style="red", header_style="bold red")
+    highlights.add_column("#", justify="right")
+    highlights.add_column("Severity")
+    highlights.add_column("Finding")
+    chosen = top_findings(outcome.results)
+    if not chosen:
+        highlights.add_row("-", "—", "No low, medium, or high item was assigned. This does not mean the site is secure.")
+    for item in chosen:
+        highlights.add_row(str(item.number), item.severity, item.summary)
+    console.print(highlights)
+
+    problems = [item for item in outcome.results if item.status in {"FAILED", "SKIPPED"}]
+    if problems:
+        console.print("\n[accent]Failed or skipped checks[/]")
+        for item in problems:
+            console.print(f"  [muted]{item.number:02d}[/] {escape(item.name)} — {escape(item.summary)}")
+
+    console.print(
+        Panel(
+            "\n".join(
+                [
+                    f"Folder: {paths.get('directory', '')}",
+                    f"Text report: {paths.get('txt', '')}",
+                    f"JSON report: {paths.get('json', '')}",
+                    f"HTML report: {paths.get('html', '')}",
+                    f"Raw outputs: {paths.get('raw', '')}",
+                    f"Log: {paths.get('logs', '')}",
+                ]
+            ),
+            title="Reports",
+            border_style="red",
+        )
+    )
+    console.print(Panel(outcome.narratives.get("conclusion", ""), title="Conclusion", border_style="red"))
