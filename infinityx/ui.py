@@ -79,8 +79,13 @@ def ask_domain(console: Console) -> str:
     return console.input("[accent]Domain:[/] ").strip()
 
 
+def authorization_accepted(answer: str) -> bool:
+    """Accept only y. n and every other answer cancel the scan."""
+    return answer.strip().lower() == "y"
+
+
 def confirm_authorization(console: Console, domain: str) -> bool:
-    """Require the exact word AGREE before any collection starts."""
+    """Ask for y or n before any collection starts."""
     console.print(
         Panel(
             "\n".join(
@@ -93,15 +98,22 @@ def confirm_authorization(console: Console, domain: str) -> bool:
                     "Optional WhatWeb or traceroute runs only when available and, for traceroute, enabled.",
                     "",
                     "Continue only if you own this domain or have permission to assess it.",
-                    "Type AGREE in capital letters to confirm. Any other answer cancels the scan.",
+                    "Type y to start the scan, or n to cancel.",
                 ]
             ),
             title="Authorization",
             border_style="bright_cyan",
         )
     )
-    answer = console.input("[accent]Type AGREE to confirm authorization:[/] ").strip()
-    return answer == "AGREE"
+    answer = console.input("[accent]Continue? [y/n]:[/] ").strip()
+    return authorization_accepted(answer)
+
+
+def ask_action(console: Console) -> str:
+    """Choose a scan, the local history, or a comparison. Enter keeps the scan."""
+    console.print("\n[accent]1[/] Scan a domain    [accent]2[/] Scan history    [accent]3[/] Compare two scans")
+    choice = console.input("[accent]Choice[/] [muted][1][/]: ").strip() or "1"
+    return choice
 
 
 def print_results_header(console: Console) -> None:
@@ -191,6 +203,7 @@ def print_dashboard(console: Console, outcome: ScanOutcome, paths: dict[str, str
             "\n".join(
                 [
                     f"Folder: {paths.get('directory', '')}",
+                    f"History id: {outcome.history_id if outcome.history_id else 'not stored'}",
                     f"Text report: {paths.get('txt', '')}",
                     f"JSON report: {paths.get('json', '')}",
                     f"HTML report: {paths.get('html', '')}",
@@ -203,3 +216,50 @@ def print_dashboard(console: Console, outcome: ScanOutcome, paths: dict[str, str
         )
     )
     console.print(Panel(outcome.narratives.get("conclusion", ""), title="Conclusion", border_style="bright_cyan"))
+    console.print(Panel(outcome.narratives.get("historical_comparison", ""), title="Historical comparison", border_style="bright_cyan"))
+    console.print(Panel(outcome.narratives.get("security_analysis", ""), title="Security analysis", border_style="bright_cyan"))
+
+
+def print_history(console: Console, rows: list[dict]) -> None:
+    """Show stored scans. An empty history stays an empty table."""
+    table = Table(title="Scan history", border_style="bright_cyan", header_style="bold bright_cyan")
+    table.add_column("Id", justify="right")
+    table.add_column("Domain")
+    table.add_column("Finished")
+    table.add_column("OK", justify="right")
+    table.add_column("Warning", justify="right")
+    table.add_column("Failed", justify="right")
+    table.add_column("Skipped", justify="right")
+    if not rows:
+        console.print("[muted]No scans are stored yet.[/]")
+        return
+    for row in rows:
+        table.add_row(
+            str(row["id"]),
+            str(row["domain"]),
+            str(row["finished_at"]),
+            str(row["status_ok"]),
+            str(row["status_warning"]),
+            str(row["status_failed"]),
+            str(row["status_skipped"]),
+        )
+    console.print(table)
+
+
+def print_comparison(console: Console, diff: dict) -> None:
+    """Show a stored comparison without repeating the scan."""
+    console.print(Panel("\n".join(diff.get("notes") or []), title="Comparison", border_style="bright_cyan"))
+    table = Table(title=diff.get("domain", "Comparison"), border_style="bright_cyan", header_style="bold bright_cyan")
+    table.add_column("Fact")
+    table.add_column("Result")
+    table.add_column("Detail")
+    for section in diff.get("sections") or []:
+        detail = section.get("detail") or ""
+        if section.get("added"):
+            detail = (detail + " Added: " + ", ".join(section["added"])).strip()
+        if section.get("removed"):
+            detail = (detail + " Removed: " + ", ".join(section["removed"])).strip()
+        for change in section.get("changed") or []:
+            detail = (detail + f" {change['field']}: {change['before']} -> {change['after']}").strip()
+        table.add_row(section["name"], section["status"].replace("_", " "), detail)
+    console.print(table)

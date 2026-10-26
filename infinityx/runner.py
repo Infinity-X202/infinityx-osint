@@ -7,11 +7,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from infinityx.analysis import apply_honesty_rules, build_narratives
+from infinityx.analyzer import analysis_text, analyze_findings
 from infinityx.checks import ALL_CHECKS, CheckSpec
 from infinityx.context import ScanContext
+from infinityx.diffscan import compare_snapshots, comparison_text
+from infinityx.history import HistoryStore
 from infinityx.models import CheckResult, ScanOutcome, build_result
 from infinityx.reporting import write_reports
 from infinityx.safety import clean_text
+from infinityx.snapshot import extract_snapshot
 
 logger = logging.getLogger("infinityx")
 
@@ -108,6 +112,7 @@ def run_scan(
     on_start=None,
     on_progress=None,
     on_result=None,
+    history: HistoryStore | None = None,
 ) -> tuple[ScanOutcome, dict[str, str]]:
     """Execute every check and write reports, including after Ctrl+C."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -141,6 +146,11 @@ def run_scan(
                 on_result(results[-1])
     finished = datetime.now(timezone.utc)
     narratives = build_narratives(domain, started.isoformat(), results, interrupted)
+    snapshot = extract_snapshot(results, interrupted)
+    analysis = analyze_findings(results, interrupted)
+    comparison = _previous_comparison(history, domain, snapshot)
+    narratives["historical_comparison"] = comparison_text(comparison)
+    narratives["security_analysis"] = analysis_text(analysis)
     outcome = ScanOutcome(
         domain=domain,
         started_at=started,
@@ -149,7 +159,29 @@ def run_scan(
         narratives=narratives,
         interrupted=interrupted,
         authorization_confirmed=True,
+        comparison=comparison,
+        analysis=analysis,
     )
+    outcome.output_dir = str(output_dir)
+    if history is not None:
+        outcome.history_id = history.save(outcome, snapshot, analysis)
+        logger.info("history id=%s", outcome.history_id)
     paths = write_reports(outcome, output_dir, ctx.artifacts)
     logger.info("scan finished reports=%s", paths.get("directory"))
     return outcome, paths
+
+
+def _previous_comparison(history: HistoryStore | None, domain: str, snapshot: dict) -> dict | None:
+    """Compare this scan with the newest stored snapshot of the same domain."""
+    if history is None:
+        return None
+    previous = history.latest(domain)
+    if previous is None:
+        return None
+    return compare_snapshots(
+        previous["snapshot"],
+        snapshot,
+        older_label=f"scan {previous['id']} at {previous['finished_at']}",
+        newer_label="this scan",
+        domain=domain,
+    )

@@ -53,6 +53,9 @@ def _render_json(outcome: ScanOutcome) -> str:
         "counts": counts(outcome.results),
         "severity_counts": severity_counts(outcome.results),
         "narratives": outcome.narratives,
+        "historical_comparison": outcome.comparison,
+        "security_analysis": outcome.analysis,
+        "history_id": outcome.history_id,
         "checks": [item.as_dict() for item in outcome.results],
     }
     return json.dumps(payload, indent=2, ensure_ascii=False, default=str)
@@ -98,6 +101,8 @@ def _render_txt(outcome: ScanOutcome) -> str:
         ("E. TLS AND EMAIL SECURITY", "tls_email"),
         ("F. FINDINGS CLASSIFICATION", "classification"),
         ("G. FINAL OVERALL ASSESSMENT", "overall_assessment"),
+        ("H. HISTORICAL COMPARISON", "historical_comparison"),
+        ("I. SECURITY FINDINGS ANALYSIS", "security_analysis"),
     ):
         lines.extend(["", "=" * 78, title, "=" * 78, outcome.narratives.get(key, "")])
     lines.extend(["", "=" * 78, "CONCLUSION", "=" * 78, outcome.narratives.get("conclusion", ""), ""])
@@ -161,6 +166,8 @@ def _render_html(outcome: ScanOutcome) -> str:
             ("TLS and email security", "tls_email"),
             ("Findings classification", "classification"),
             ("Overall assessment", "overall_assessment"),
+            ("Historical comparison", "historical_comparison"),
+            ("Security findings analysis", "security_analysis"),
         )
     )
     return f"""<!DOCTYPE html>

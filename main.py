@@ -13,15 +13,19 @@ from datetime import datetime
 from pathlib import Path
 
 from infinityx import TOOL_NAME, TOOL_SUMMARY, __version__
+from infinityx.history import HistoryStore
 from infinityx.runner import run_scan
 from infinityx.ui import (
     ProgressDisplay,
+    ask_action,
     ask_domain,
     confirm_authorization,
     make_console,
     print_banner,
     print_check_row,
+    print_comparison,
     print_dashboard,
+    print_history,
     print_results_header,
 )
 from infinityx.validation import normalize_domain
@@ -35,12 +39,20 @@ def build_parser() -> argparse.ArgumentParser:
         prog="infinityx",
         description=TOOL_SUMMARY,
         epilog=(
-            "The scanner always asks you to type AGREE before it collects anything. "
+            "The scanner always asks you to type y or n before it collects anything. "
             "It does not exploit vulnerabilities, guess passwords, or scan ports. "
             f"{TOOL_NAME} was created by Infinity."
         ),
     )
     parser.add_argument("--domain", help="Domain to assess, such as example.com. Authorization is still required.")
+    parser.add_argument("--history", action="store_true", help="Show scans stored on this computer. Nothing is collected.")
+    parser.add_argument(
+        "--compare",
+        nargs=2,
+        type=int,
+        metavar=("OLDER", "NEWER"),
+        help="Compare two stored scan numbers for the same domain. Nothing is collected.",
+    )
     parser.add_argument(
         "--reports-dir",
         default=str(ROOT / "reports"),
@@ -70,6 +82,23 @@ def main(argv: list[str] | None = None) -> int:
     console = make_console()
     refuse_root(console)
     print_banner(console)
+    history = HistoryStore(Path(args.reports_dir) / "infinityx.sqlite")
+    if args.history:
+        print_history(console, history.list_scans())
+        return 0
+    if args.compare:
+        return _show_comparison(console, history, args.compare[0], args.compare[1])
+    if not args.domain:
+        try:
+            choice = ask_action(console)
+        except (EOFError, KeyboardInterrupt):
+            console.print("\n[warning]Cancelled.[/]")
+            return 2
+        if choice == "2":
+            print_history(console, history.list_scans())
+            return 0
+        if choice == "3":
+            return _compare_from_prompt(console, history)
 
     raw = args.domain.strip() if args.domain else ""
     while not raw:
@@ -121,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
             raw,
             folder,
             enable_traceroute=args.enable_traceroute,
+            history=history,
             on_start=on_start,
             on_progress=on_progress,
             on_result=on_result,
@@ -134,6 +164,36 @@ def main(argv: list[str] | None = None) -> int:
 
     print_dashboard(console, outcome, paths)
     return 0
+
+
+def _show_comparison(console, history: HistoryStore, older_id: int, newer_id: int) -> int:
+    """Print one stored comparison. A bad id does not start a scan."""
+    try:
+        diff = history.compare(older_id, newer_id)
+    except ValueError as exc:
+        console.print(f"[warning]{exc}[/]")
+        return 2
+    print_comparison(console, diff)
+    return 0
+
+
+def _compare_from_prompt(console, history: HistoryStore) -> int:
+    """Let the operator pick two stored scans. No check is repeated."""
+    rows = history.list_scans()
+    print_history(console, rows)
+    if len(rows) < 2:
+        console.print("[warning]At least two stored scans are required before a comparison.[/]")
+        return 2
+    try:
+        older = console.input("[accent]Earlier scan number:[/] ").strip()
+        newer = console.input("[accent]Later scan number:[/] ").strip()
+    except (EOFError, KeyboardInterrupt):
+        console.print("\n[warning]Cancelled.[/]")
+        return 2
+    if not older.isdigit() or not newer.isdigit():
+        console.print("[warning]Enter the two scan numbers from the history table.[/]")
+        return 2
+    return _show_comparison(console, history, int(older), int(newer))
 
 
 if __name__ == "__main__":

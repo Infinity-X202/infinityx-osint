@@ -192,3 +192,6 @@ class ScanOutcome:
     output_dir: str | None = None
     interrupted: bool = False
     authorization_confirmed: bool = True
+    comparison: dict[str, Any] | None = None
+    analysis: list[dict[str, Any]] = field(default_factory=list)
+    history_id: int | None = None

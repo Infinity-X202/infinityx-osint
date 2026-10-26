@@ -14,6 +14,10 @@
 
 <br><br>
 
+<img src="assets/terminal.jpg" width="100%" alt="InfinityX terminal banner">
+
+<br><br>
+
 **Point InfinityX at a domain you own or are allowed to assess.**  
 It reads the public trail, shows the scan live, and writes a report a human can actually understand.
 
@@ -37,7 +41,7 @@ It reads the public trail, shows the scan live, and writes a report a human can 
 
 InfinityX does not guess passwords, exploit services, or scan ports. A banner or a missing header is an observation, not proof of a vulnerability. The report never declares a site safe or compromised.
 
-Type `AGREE` before a scan. That question still appears when you pass `--domain`.
+Type `y` to start a scan, or `n` to cancel. That question still appears when you pass `--domain`.
 
 ## Launch
 
@@ -57,10 +61,17 @@ If `install.sh` says `No such file or directory`, you are not inside `infinityx-
 `install.sh` shows the package list and installs system packages only after you answer `y`.
 
 ```bash
+python main.py
 python main.py --domain example.com
+python main.py --history
+python main.py --compare 1 2
 python main.py --help
 python main.py --domain example.com --enable-traceroute
 ```
+
+At the prompt, `1` starts a scan, `2` shows scans already stored on this computer, and `3` compares two of them. Comparison reads the local database. It does not run the checks again.
+
+The first scan of a domain has nothing older to compare. The next scan of that same domain writes the difference into `report.txt`, `report.json`, and `report.html`. History is kept in `reports/infinityx.sqlite`.
 
 ## What lands on disk
 
