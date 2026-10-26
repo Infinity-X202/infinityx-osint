@@ -8,10 +8,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
+from infinityx import __version__
 from infinityx.analysis import counts
 from infinityx.diffscan import compare_snapshots
 from infinityx.models import ScanOutcome
 from infinityx.safety import clean_text
+
+SCHEMA_VERSION = 2
 
 
 class HistoryStore:
@@ -22,7 +25,16 @@ class HistoryStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._ensure()
 
-    def save(self, outcome: ScanOutcome, snapshot: dict[str, Any], analysis: list[dict[str, str]]) -> int:
+    def save(
+        self,
+        outcome: ScanOutcome,
+        snapshot: dict[str, Any],
+        analysis: list[dict[str, str]],
+        *,
+        correlation: dict[str, Any] | None = None,
+        audit: list[dict[str, Any]] | None = None,
+        subdomains: dict[str, Any] | None = None,
+    ) -> int:
         """Insert one scan and its finding rows. Returns the new id."""
         status = counts(outcome.results)
         with self._session() as connection:
@@ -31,8 +43,8 @@ class HistoryStore:
                 INSERT INTO scans (
                     domain, started_at, finished_at, output_dir, interrupted,
                     status_ok, status_warning, status_failed, status_skipped,
-                    snapshot_json, analysis_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    snapshot_json, analysis_json, scanner_version, correlation_json, audit_json, subdomains_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     outcome.domain,
@@ -46,6 +58,10 @@ class HistoryStore:
                     status["SKIPPED"],
                     json.dumps(snapshot, ensure_ascii=False),
                     json.dumps(analysis, ensure_ascii=False),
+                    __version__,
+                    json.dumps(correlation or {}, ensure_ascii=False),
+                    json.dumps(audit or [], ensure_ascii=False),
+                    json.dumps(subdomains or {}, ensure_ascii=False),
                 ),
             )
             scan_id = int(cursor.lastrowid)
@@ -163,6 +179,25 @@ class HistoryStore:
                 """
             )
             connection.execute("CREATE INDEX IF NOT EXISTS idx_scans_domain ON scans(domain, id)")
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            )
+            self._migrate(connection)
+
+    def _migrate(self, connection: sqlite3.Connection) -> None:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(scans)")}
+        for name, ddl in (
+            ("scanner_version", "ALTER TABLE scans ADD COLUMN scanner_version TEXT DEFAULT ''"),
+            ("correlation_json", "ALTER TABLE scans ADD COLUMN correlation_json TEXT DEFAULT '{}'"),
+            ("audit_json", "ALTER TABLE scans ADD COLUMN audit_json TEXT DEFAULT '[]'"),
+            ("subdomains_json", "ALTER TABLE scans ADD COLUMN subdomains_json TEXT DEFAULT '{}'"),
+        ):
+            if name not in columns:
+                connection.execute(ddl)
+        connection.execute(
+            "INSERT OR REPLACE INTO schema_meta(key, value) VALUES ('schema_version', ?)",
+            (str(SCHEMA_VERSION),),
+        )
 
     @contextmanager
     def _session(self) -> Iterator[sqlite3.Connection]:
@@ -181,4 +216,9 @@ def _scan_row(row: sqlite3.Row) -> dict[str, Any]:
     payload["interrupted"] = bool(payload["interrupted"])
     payload["snapshot"] = json.loads(payload.pop("snapshot_json"))
     payload["analysis"] = json.loads(payload.pop("analysis_json"))
+    payload["correlation"] = json.loads(payload.get("correlation_json") or "{}")
+    payload["audit"] = json.loads(payload.get("audit_json") or "[]")
+    payload["subdomains"] = json.loads(payload.get("subdomains_json") or "{}")
+    for key in ("snapshot_json", "analysis_json", "correlation_json", "audit_json", "subdomains_json"):
+        payload.pop(key, None)
     return payload

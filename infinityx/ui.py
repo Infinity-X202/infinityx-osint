@@ -109,11 +109,16 @@ def confirm_authorization(console: Console, domain: str) -> bool:
     return authorization_accepted(answer)
 
 
-def ask_action(console: Console) -> str:
-    """Choose a scan, the local history, or a comparison. Enter keeps the scan."""
-    console.print("\n[accent]1[/] Scan a domain    [accent]2[/] Scan history    [accent]3[/] Compare two scans")
-    choice = console.input("[accent]Choice[/] [muted][1][/]: ").strip() or "1"
-    return choice
+def ask_main_menu(console: Console) -> str:
+    """Main InfinityX menu. Enter defaults to scan."""
+    console.print(
+        "\n[accent]1[/] Start OSINT scan   [accent]2[/] Subdomain intelligence   [accent]3[/] Scan history   [accent]4[/] Compare scans"
+    )
+    console.print(
+        "[accent]5[/] Correlation   [accent]6[/] Security audit   [accent]7[/] AI summary   [accent]8[/] Reports & graphs"
+    )
+    console.print("[accent]9[/] Telegram   [accent]10[/] Plugins   [accent]0[/] Exit")
+    return console.input("[accent]Choice[/] [muted][1][/]: ").strip() or "1"
 
 
 def print_results_header(console: Console) -> None:

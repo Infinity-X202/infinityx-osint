@@ -8,6 +8,7 @@ from pathlib import Path
 
 from infinityx import AUTHOR, DISCLAIMER, TOOL_NAME, TOOL_SUMMARY, __version__
 from infinityx.analysis import counts, severity_counts
+from infinityx.graph_html import correlation_graph_html
 from infinityx.models import CheckResult, ScanOutcome
 from infinityx.safety import clean_text
 
@@ -55,6 +56,10 @@ def _render_json(outcome: ScanOutcome) -> str:
         "narratives": outcome.narratives,
         "historical_comparison": outcome.comparison,
         "security_analysis": outcome.analysis,
+        "correlation": outcome.correlation,
+        "security_audit": outcome.audit,
+        "ai_summary": outcome.ai_summary,
+        "plugins": [item.as_dict() for item in outcome.plugin_results],
         "history_id": outcome.history_id,
         "checks": [item.as_dict() for item in outcome.results],
     }
@@ -103,6 +108,9 @@ def _render_txt(outcome: ScanOutcome) -> str:
         ("G. FINAL OVERALL ASSESSMENT", "overall_assessment"),
         ("H. HISTORICAL COMPARISON", "historical_comparison"),
         ("I. SECURITY FINDINGS ANALYSIS", "security_analysis"),
+        ("J. INTELLIGENCE CORRELATION", "correlation"),
+        ("K. SECURITY AUDIT", "security_audit"),
+        ("L. AI INTELLIGENCE (VERIFY AGAINST EVIDENCE)", "ai_intelligence"),
     ):
         lines.extend(["", "=" * 78, title, "=" * 78, outcome.narratives.get(key, "")])
     lines.extend(["", "=" * 78, "CONCLUSION", "=" * 78, outcome.narratives.get("conclusion", ""), ""])
@@ -168,6 +176,9 @@ def _render_html(outcome: ScanOutcome) -> str:
             ("Overall assessment", "overall_assessment"),
             ("Historical comparison", "historical_comparison"),
             ("Security findings analysis", "security_analysis"),
+            ("Intelligence correlation", "correlation"),
+            ("Security audit", "security_audit"),
+            ("AI intelligence", "ai_intelligence"),
         )
     )
     return f"""<!DOCTYPE html>
@@ -236,6 +247,7 @@ footer {{ color:var(--muted); margin-top:32px; }}
 </table>
 </section>
 <section><h2>Technical details</h2>{details}</section>
+<section><h2>Correlation graph</h2>{correlation_graph_html(outcome.correlation or {})}</section>
 <section><h2>Conclusion</h2>{_paragraphs(outcome.narratives.get("conclusion", ""))}</section>
 <footer>
 <p>{escape(DISCLAIMER)}</p>

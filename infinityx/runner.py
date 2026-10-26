@@ -6,16 +6,22 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-from infinityx.analysis import apply_honesty_rules, build_narratives
+from infinityx.analysis import apply_honesty_rules, build_narratives, counts
 from infinityx.analyzer import analysis_text, analyze_findings
+from infinityx.ai_assistant import build_intelligence_summary
+from infinityx.audit_engine import audit_summary_text, run_security_audit
 from infinityx.checks import ALL_CHECKS, CheckSpec
+from infinityx.config import AppConfig
 from infinityx.context import ScanContext
+from infinityx.correlation import build_correlation_graph, export_graph_dot, export_graph_json, render_graphviz_png
 from infinityx.diffscan import compare_snapshots, comparison_text
 from infinityx.history import HistoryStore
 from infinityx.models import CheckResult, ScanOutcome, build_result
+from infinityx.plugin_manager import run_enabled_plugins
 from infinityx.reporting import write_reports
 from infinityx.safety import clean_text
 from infinityx.snapshot import extract_snapshot
+from infinityx.telegram_alerts import build_change_alert, send_scan_alert
 
 logger = logging.getLogger("infinityx")
 
@@ -113,6 +119,7 @@ def run_scan(
     on_progress=None,
     on_result=None,
     history: HistoryStore | None = None,
+    app_config: AppConfig | None = None,
 ) -> tuple[ScanOutcome, dict[str, str]]:
     """Execute every check and write reports, including after Ctrl+C."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -151,6 +158,27 @@ def run_scan(
     comparison = _previous_comparison(history, domain, snapshot)
     narratives["historical_comparison"] = comparison_text(comparison)
     narratives["security_analysis"] = analysis_text(analysis)
+    plugin_results = run_enabled_plugins(domain, {"scan_context": ctx})
+    audit = run_security_audit(results, domain, interrupted)
+    correlation = build_correlation_graph(domain, results, subdomains=_ct_hosts(results, domain))
+    narratives["correlation"] = correlation.get("summary", "")
+    narratives["security_audit"] = audit_summary_text(audit)
+    config = app_config or AppConfig.load(output_dir.parent)
+    status = counts(results)
+    ai_summary = build_intelligence_summary(
+        domain,
+        {
+            "total": len(results),
+            "ok": status["OK"],
+            "warning": status["WARNING"],
+            "failed": status["FAILED"],
+            "skipped": status["SKIPPED"],
+        },
+        audit,
+        comparison,
+        config,
+    )
+    narratives["ai_intelligence"] = f"{ai_summary['label']}\n\n{ai_summary['text']}"
     outcome = ScanOutcome(
         domain=domain,
         started_at=started,
@@ -161,12 +189,31 @@ def run_scan(
         authorization_confirmed=True,
         comparison=comparison,
         analysis=analysis,
+        correlation=correlation,
+        audit=audit,
+        ai_summary=ai_summary,
+        plugin_results=plugin_results,
     )
     outcome.output_dir = str(output_dir)
     if history is not None:
-        outcome.history_id = history.save(outcome, snapshot, analysis)
+        outcome.history_id = history.save(
+            outcome,
+            snapshot,
+            analysis,
+            correlation=correlation,
+            audit=audit,
+        )
         logger.info("history id=%s", outcome.history_id)
     paths = write_reports(outcome, output_dir, ctx.artifacts)
+    intel_dir = output_dir / "intel"
+    intel_dir.mkdir(exist_ok=True)
+    export_graph_json(correlation, intel_dir / "correlation.json")
+    export_graph_dot(correlation, intel_dir / "correlation.dot")
+    graph_note = render_graphviz_png(intel_dir / "correlation.dot", intel_dir / "correlation.png")
+    if graph_note:
+        (intel_dir / "graphviz.txt").write_text(graph_note, encoding="utf-8")
+    if config.telegram_enabled:
+        send_scan_alert(config, build_change_alert(domain, comparison, audit))
     logger.info("scan finished reports=%s", paths.get("directory"))
     return outcome, paths
 
@@ -185,3 +232,23 @@ def _previous_comparison(history: HistoryStore | None, domain: str, snapshot: di
         newer_label="this scan",
         domain=domain,
     )
+
+
+def _ct_hosts(results: list[CheckResult], domain: str) -> list[dict]:
+    """Pass CT names into correlation without claiming they are live subdomains."""
+    item = next((row for row in results if row.check_id == "cert-transparency"), None)
+    if item is None or item.status in {"FAILED", "SKIPPED"} or not isinstance(item.data, dict):
+        return []
+    hosts = []
+    for name in item.data.get("names") or []:
+        host = str(name).lower().rstrip(".")
+        if host and host != domain and host.endswith("." + domain):
+            hosts.append(
+                {
+                    "hostname": host,
+                    "source": "certificate_transparency",
+                    "confidence": "medium",
+                    "limitation": "CT name only; not resolved in the core scan.",
+                }
+            )
+    return hosts

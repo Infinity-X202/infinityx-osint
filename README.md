@@ -10,6 +10,7 @@
 <img src="https://img.shields.io/badge/Kali%20Linux-passive%20OSINT-0f172a?style=for-the-badge&logo=kalilinux&logoColor=22d3ee" alt="Kali Linux">
 <img src="https://img.shields.io/badge/Python-3.10%2B-22d3ee?style=for-the-badge&logo=python&logoColor=0f172a" alt="Python 3.10+">
 <img src="https://img.shields.io/badge/checks-50-a78bfa?style=for-the-badge" alt="50 checks">
+<img src="https://img.shields.io/badge/version-1.1.0-22d3ee?style=for-the-badge" alt="v1.1.0">
 <img src="https://img.shields.io/github/stars/Infinity-X202/infinityx-osint?style=for-the-badge&color=22d3ee" alt="Stars">
 
 <br><br>
@@ -36,6 +37,8 @@ It reads the public trail, shows the scan live, and writes a report a human can 
 | **03** | The homepage: status, redirects, title, headers, robots, sitemap |
 | **04** | The live certificate, hostname match, expiry, and transparency logs |
 | **05** | Public IP, ASN, a cautious location estimate, and email policy |
+| **06** | Correlation graph, scan history, diff exports, security audit, optional AI & Telegram |
+| **07** | Passive subdomain intelligence (CT + optional DNS resolve) and local plugins |
 
 </div>
 
@@ -65,13 +68,36 @@ python main.py
 python main.py --domain example.com
 python main.py --history
 python main.py --compare 1 2
+python main.py --telegram-test
 python main.py --help
 python main.py --domain example.com --enable-traceroute
 ```
 
-At the prompt, `1` starts a scan, `2` shows scans already stored on this computer, and `3` compares two of them. Comparison reads the local database. It does not run the checks again.
+### Interactive menu (`python main.py`)
 
-The first scan of a domain has nothing older to compare. The next scan of that same domain writes the difference into `report.txt`, `report.json`, and `report.html`. History is kept in `reports/infinityx.sqlite`.
+| Key | Action |
+|-----|--------|
+| **1** | Start the full 50-check OSINT scan (`y` / `n` authorization) |
+| **2** | Passive subdomain intelligence (crt.sh + optional A lookups) |
+| **3** | Local scan history (`reports/infinityx.sqlite`) |
+| **4** | Compare two scans → terminal view + `reports/comparisons/` export |
+| **5** | Correlation summary from the latest stored scan |
+| **6** | Security audit rows from the latest scan |
+| **7** | Pointer to the AI section in the latest report |
+| **8** | List recent report folders (`intel/correlation.json` inside each scan) |
+| **9** | Telegram alert settings / test message |
+| **10** | Enable or disable example plugins |
+| **0** | Exit |
+
+The first scan of a domain has nothing older to compare. The next scan writes **ADDED / REMOVED / CHANGED / UNCHANGED / UNKNOWN** diffs into the reports. History never re-runs checks for a comparison.
+
+### Optional configuration
+
+Copy `infinityx.env.example` to `infinityx.local.env` (git-ignored), export the variables, then run InfinityX.
+
+- **Telegram:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `INFINITYX_TELEGRAM_ALERTS=1`
+- **AI assistant:** `INFINITYX_AI_ENABLED=1`, `INFINITYX_AI_API_KEY`, `INFINITYX_AI_API_BASE` (OpenAI-compatible chat endpoint)
+- **Graphviz:** install `graphviz` on Kali for `intel/correlation.png` (JSON and DOT always export)
 
 ## What lands on disk
 
@@ -82,6 +108,7 @@ Each scan creates `reports/<timestamp>_<domain>/`:
 - `report.html` — cards, filters, and expandable evidence
 - `raw_results/` — original public responses
 - `logs/scan.log` — the run log, with secret-like values removed
+- `intel/correlation.json` · `intel/correlation.dot` · optional `correlation.png`
 
 ## The fifty checks
 

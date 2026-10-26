@@ -127,11 +127,36 @@ def _section(
     changed: list[dict[str, str]] | None = None,
     detail: str = "",
 ) -> dict[str, Any]:
+    classification = _classify(status, added, removed, changed)
     return {
         "name": name,
         "status": status,
+        "classification": classification,
         "added": added or [],
         "removed": removed or [],
         "changed": changed or [],
         "detail": detail,
     }
+
+
+def _classify(
+    status: str,
+    added: list[str] | None,
+    removed: list[str] | None,
+    changed: list[dict[str, str]] | None,
+) -> str:
+    if status == "not_compared":
+        return "UNKNOWN"
+    if status == "unchanged":
+        return "UNCHANGED"
+    if changed:
+        return "CHANGED"
+    if added and removed:
+        return "CHANGED"
+    if added:
+        return "ADDED"
+    if removed:
+        return "REMOVED"
+    if status == "changed":
+        return "CHANGED"
+    return "UNKNOWN"

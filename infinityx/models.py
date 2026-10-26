@@ -195,3 +195,8 @@ class ScanOutcome:
     comparison: dict[str, Any] | None = None
     analysis: list[dict[str, Any]] = field(default_factory=list)
     history_id: int | None = None
+    correlation: dict[str, Any] | None = None
+    subdomains: dict[str, Any] | None = None
+    audit: list[dict[str, Any]] = field(default_factory=list)
+    ai_summary: dict[str, Any] | None = None
+    plugin_results: list[CheckResult] = field(default_factory=list)

@@ -7,7 +7,7 @@ It does not exploit services or prove that a site is safe or compromised.
 
 from __future__ import annotations
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 TOOL_NAME = "InfinityX OSINT Scanner"
 AUTHOR = "Infinity"
 TOOL_SUMMARY = (
