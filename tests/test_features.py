@@ -102,6 +102,13 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(sections["HTTP headers"]["removed"], ["x-test"])
         self.assertEqual(sections["Subdomains and certificate names"]["added"], ["www.example.com"])
 
+    def test_soa_object_is_compared(self) -> None:
+        older = extract_snapshot([_check("dns-soa", data={"mname": "ns1.example", "serial": 1})], False)
+        newer = extract_snapshot([_check("dns-soa", data={"mname": "ns1.example", "serial": 2})], False)
+        diff = compare_snapshots(older, newer, older_label="1", newer_label="2", domain="example.com")
+        section = next(item for item in diff["sections"] if item["name"] == "DNS SOA record")
+        self.assertEqual(section["status"], "changed")
+
     def test_compare_requires_same_domain(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             store = HistoryStore(Path(folder) / "infinityx.sqlite")

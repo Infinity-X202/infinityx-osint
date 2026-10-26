@@ -32,10 +32,13 @@ def extract_snapshot(results: list[CheckResult], interrupted: bool) -> dict[str,
 def _records(item: CheckResult | None) -> dict[str, Any]:
     if item is None or item.status in {"FAILED", "SKIPPED"}:
         return {"state": "unavailable", "values": []}
-    records = item.data.get("records") if isinstance(item.data, dict) else None
-    if not isinstance(records, list):
-        return {"state": "unavailable", "values": []}
-    return {"state": "present", "values": [_flat(value) for value in records]}
+    data = item.data if isinstance(item.data, dict) else {}
+    records = data.get("records")
+    if isinstance(records, list):
+        return {"state": "present", "values": [_flat(value) for value in records]}
+    if data and set(data) != {"status"}:
+        return {"state": "present", "values": [_flat(data)]}
+    return {"state": "unavailable", "values": []}
 
 
 def _string_list(item: CheckResult | None, key: str) -> dict[str, Any]:
