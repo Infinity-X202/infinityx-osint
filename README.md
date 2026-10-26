@@ -2,11 +2,17 @@
 
 Created by Infinity.
 
-One authorized domain. Fifty public checks. A black-and-red terminal, then a finished story: who registered the name, where DNS sends it, what the site answers, what the certificate says, and how mail policy is published.
+![InfinityX command center](assets/infinityx-banner.jpg)
+
+One authorized domain. Fifty public checks. A black-and-crimson command center in the terminal, then a finished story: who registered the name, where DNS sends it, what the site answers, what the certificate says, and how mail policy is published.
 
 InfinityX OSINT Scanner is passive reconnaissance for Kali Linux. You give it a domain you own or are allowed to assess. It gathers public WHOIS, DNS, HTTP, TLS, hosting, and email-authentication data, explains every result, and writes `report.txt`, `report.json`, and `report.html`. It does not guess passwords, exploit services, or scan ports.
 
+`python main.py` opens the intelligence center. Use the arrow keys or a number. Leave the domain line empty to return to the menu. In Settings, type `T` to toggle traceroute. The same switch still exists as `--enable-traceroute`.
+
 Type `AGREE` before a scan starts. That confirmation is required even when you pass `--domain`.
+
+If the terminal can draw images, `INFINITYX_BANNER=1` and `chafa` or `timg` show the brand artwork from the About screen. The scanner does not need that preview.
 
 ## What the tool does
 
