@@ -59,9 +59,10 @@ class InterfaceTests(unittest.TestCase):
             console, stream = _console(width)
             console.print(render_header(console))
             text = stream.getvalue()
-            self.assertIn("INFINITYX", text)
+            self.assertIn("InfinityX", text)
             self.assertIn(__version__, text)
-            self.assertIn("50", text)
+            self.assertIn("Created by Infinity", text)
+            self.assertIn("report.html", text)
 
     def test_selection_wraps(self) -> None:
         self.assertEqual(move_selection(0, "up", 6), 5)

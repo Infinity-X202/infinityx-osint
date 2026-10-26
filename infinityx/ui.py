@@ -31,8 +31,8 @@ from infinityx.models import CheckResult, ScanOutcome
 
 THEME = Theme(
     {
-        "accent": "bold red",
-        "crimson": "red",
+        "accent": "bold bright_cyan",
+        "crimson": "bright_cyan",
         "silver": "white",
         "cyan": "cyan",
         "ok": "green",
@@ -46,20 +46,12 @@ THEME = Theme(
 BANNER_PATH = Path(__file__).resolve().parents[1] / "assets" / "infinityx-banner.jpg"
 
 LOGO = r"""
-                 .--------.                 .--------.
-             .--'          '--.         .--'          '--.
-          .-'    .--------.    '-.---.-'    .--------.    '-.
-        .'     .'          '.     \     .'          '.     '.
-       /      /    ______    \     )   /    ______    \      \
-      ;      ;    /      \    ;   (   ;    /      \    ;      ;
-      :      :   :  INFX  :   :   )   :   :  INFX  :   :      :
-      :      :    \______/    ;   (   :    \______/    ;      :
-       \      \              /     )   \              /      /
-        '.     '.          .'     /     '.          .'     .'
-          '-.    '--------'    .-'---'-.    '--------'    .-'
-             '--.          .--'         '--.          .--'
-                 '--------'                 '--------'
-                        I N F I N I T Y X
+██╗███╗   ██╗███████╗██╗███╗   ██╗██╗████████╗██╗   ██╗██╗  ██╗
+██║████╗  ██║██╔════╝██║████╗  ██║██║╚══██╔══╝╚██╗ ██╔╝╚██╗██╔╝
+██║██╔██╗ ██║█████╗  ██║██╔██╗ ██║██║   ██║    ╚████╔╝  ╚███╔╝
+██║██║╚██╗██║██╔══╝  ██║██║╚██╗██║██║   ██║     ╚██╔╝   ██╔██╗
+██║██║ ╚████║██║     ██║██║ ╚████║██║   ██║      ██║   ██╔╝ ██╗
+╚═╝╚═╝  ╚═══╝╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝      ╚═╝   ╚═╝  ╚═╝
 """.rstrip("\n")
 
 MENU_ITEMS = (
@@ -136,25 +128,27 @@ def system_facts() -> list[tuple[str, str]]:
 
 
 def render_header(console: Console) -> Panel:
-    """Build the branded header from the real version, clock, and check registry."""
+    """Show the tool name, author, and explanation, centered."""
     compact = console.width < 78 or not _unicode_ok(console)
-    body = Text()
+    body = Text(justify="center")
     if compact:
-        body.append("INFINITYX\n", style="bold red")
+        body.append("INFINITYX\n", style="bold bright_cyan")
     else:
-        body.append(LOGO + "\n", style="bold red")
-    body.append("\nINFINITYX OSINT SCANNER\n", style="bold white")
-    body.append("ADVANCED DOMAIN INTELLIGENCE\n", style="cyan")
-    body.append("PASSIVE RECONNAISSANCE ENGINE\n", style="red")
-    body.append(f"Created by {AUTHOR}  ·  v{__version__}\n\n", style="bright_black")
-    for label, value in system_facts():
-        body.append(f"{label:<8} ", style="bright_black")
-        body.append(value + "\n", style="cyan" if label in {"Checks", "Status"} else "white")
+        body.append(LOGO + "\n", style="bold bright_cyan")
+    body.append(f"\n{TOOL_NAME}  ·  v{__version__}\n", style="bold bright_white")
+    body.append(f"Created by {AUTHOR}\n\n", style="bold bright_magenta")
+    body.append(TOOL_SUMMARY + "\n\n", style="bright_white")
+    body.append(
+        "It collects public WHOIS, DNS, HTTP, TLS, hosting, and email-policy data for one domain, "
+        "then writes report.txt, report.json, and report.html. "
+        "It does not guess passwords, exploit services, or scan ports.\n",
+        style="bright_white",
+    )
     return Panel(
-        Align.center(body) if not compact else body,
-        border_style="red",
-        title="[bold white]INFINITYX[/]",
-        subtitle="[red]passive authorized OSINT[/]",
+        Align.center(body),
+        border_style="bright_cyan",
+        title="[bold bright_cyan]InfinityX[/]",
+        subtitle="[bold bright_magenta]passive authorized OSINT[/]",
         padding=(1, 2),
     )
 
@@ -181,10 +175,10 @@ def ask_domain(console: Console) -> str:
                 ]
             ),
             title="Target",
-            border_style="red",
+            border_style="bright_cyan",
         )
     )
-    return console.input(f"[red]Domain[/] [white]{_mark(console)}[/] ").strip()
+    return console.input(f"[bright_cyan]Domain[/] [white]{_mark(console)}[/] ").strip()
 
 
 def confirm_authorization(console: Console, domain: str) -> bool:
@@ -204,10 +198,10 @@ def confirm_authorization(console: Console, domain: str) -> bool:
                 ]
             ),
             title="Authorization",
-            border_style="red",
+            border_style="bright_cyan",
         )
     )
-    answer = console.input(f"[red]Type AGREE to confirm authorization[/] [white]{_mark(console)}[/] ")
+    answer = console.input(f"[accent]Type AGREE to confirm authorization[/] [white]{_mark(console)}[/] ")
     return authorization_accepted(answer)
 
 
@@ -228,11 +222,11 @@ def render_menu(index: int, *, title: str, items: tuple[tuple[str, str], ...], h
     lines = Text()
     for position, (key, label) in enumerate(items):
         if position == index:
-            lines.append(f"  {pointer} [{key}] {label}\n", style="bold white on red")
+            lines.append(f"  {pointer} [{key}] {label}\n", style="bold black on bright_cyan")
         else:
             lines.append(f"    [{key}] {label}\n", style="white")
     lines.append("\n" + hint, style="bright_black")
-    return Panel(lines, title=f"[bold white]{title}[/]", border_style="red", padding=(1, 2))
+    return Panel(lines, title=f"[bold white]{title}[/]", border_style="bright_cyan", padding=(1, 2))
 
 
 def read_key() -> str:
@@ -282,7 +276,7 @@ def choose(console: Console, title: str, items: tuple[tuple[str, str], ...], hin
         for key, label in items:
             console.print(f"  [{key}] {label}")
         try:
-            entered = console.input(f"[red]Select[/] [white]{_mark(console)}[/] ").strip()
+            entered = console.input(f"[bright_cyan]Select[/] [white]{_mark(console)}[/] ").strip()
         except EOFError:
             return None
         return entered if entered in keys else None
@@ -313,7 +307,7 @@ def list_report_dirs(reports_dir: Path) -> list[Path]:
 
 def render_checks() -> Table:
     """List the registered checks. This is the engine registry, not a sample."""
-    table = Table(title="Available checks", border_style="red", header_style="bold red", expand=True)
+    table = Table(title="Available checks", border_style="bright_cyan", header_style="bold bright_cyan", expand=True)
     table.add_column("#", justify="right", style="cyan", no_wrap=True)
     table.add_column("Group", style="white")
     table.add_column("Check", style="white")
@@ -380,14 +374,14 @@ class ScanBoard:
         percent = 0.0 if self.total <= 0 else (self.finished / self.total) * 100
         elapsed = time.monotonic() - self.started
         header = Text()
-        header.append(f" {_spinner(fancy)} ", style="bold red")
+        header.append(f" {_spinner(fancy)} ", style="bold bright_cyan")
         header.append(escape(self.current_name), style="bold white")
         if self.current_category:
             header.append("   ", style="white")
             header.append(escape(self.current_category), style="cyan")
         header.append(f"\n {percent:5.1f}%   {self.finished}/{self.total}   {elapsed:6.1f}s", style="bright_black")
         width = max(16, min(56, self.console.width - 8))
-        bar = Text(_bar(self.finished, self.total, width, fancy), style="red")
+        bar = Text(_bar(self.finished, self.total, width, fancy), style="bright_cyan")
         groups = Table.grid(expand=True, padding=(0, 2))
         groups.add_column(style="bright_black")
         groups.add_column(justify="right", style="cyan")
@@ -412,7 +406,7 @@ class ScanBoard:
             ("   Skipped ", "bright_black"),
             (str(status["SKIPPED"]), "bright_black"),
         )
-        table = Table(border_style="red", header_style="bold red", expand=True, show_edge=False)
+        table = Table(border_style="bright_cyan", header_style="bold bright_cyan", expand=True, show_edge=False)
         table.add_column("#", justify="right", style="cyan", no_wrap=True)
         table.add_column("Status", no_wrap=True)
         table.add_column("Check")
@@ -425,18 +419,18 @@ class ScanBoard:
             caption = f"Latest {len(visible)} of {len(self.rows)} completed checks. The full list is saved in the report."
         else:
             caption = "Completed checks appear here as the engine finishes them."
-        rule = Rule(characters="─" if fancy else "-", style="red")
+        rule = Rule(characters="─" if fancy else "-", style="bright_cyan")
         return Panel(
             Group(header, bar, rule, groups, counters, rule, table, Text(caption, style="bright_black")),
             title="[bold white]Live scan[/]",
-            border_style="red",
+            border_style="bright_cyan",
             padding=(1, 1),
         )
 
 
 def print_results_header(console: Console) -> None:
     """Keep the older call working. The live board draws its own header."""
-    console.print(Rule(title="Live scan", style="red"))
+    console.print(Rule(title="Live scan", style="bright_cyan"))
 
 
 def print_check_row(console: Console, item: CheckResult) -> None:
@@ -453,9 +447,9 @@ class ProgressDisplay:
 
     def __init__(self, console: Console, total: int) -> None:
         self.progress = Progress(
-            SpinnerColumn(style="red"),
-            TextColumn("[red]{task.description}"),
-            BarColumn(bar_width=36, complete_style="red", finished_style="green"),
+            SpinnerColumn(style="bright_cyan"),
+            TextColumn("[bright_cyan]{task.description}"),
+            BarColumn(bar_width=36, complete_style="bright_cyan", finished_style="green"),
             TextColumn("{task.percentage:>5.1f}%"),
             TimeElapsedColumn(),
             console=console,
@@ -482,7 +476,7 @@ def print_dashboard(console: Console, outcome: ScanOutcome, paths: dict[str, str
     status = counts(outcome.results)
     severity = severity_counts(outcome.results)
     duration = (outcome.finished_at - outcome.started_at).total_seconds()
-    summary = Table(title="Scan summary", border_style="red", header_style="bold red", expand=True)
+    summary = Table(title="Scan summary", border_style="bright_cyan", header_style="bold bright_cyan", expand=True)
     summary.add_column("Item", style="bright_black")
     summary.add_column("Value", style="white")
     summary.add_row("Target", outcome.domain)
@@ -497,7 +491,7 @@ def print_dashboard(console: Console, outcome: ScanOutcome, paths: dict[str, str
         summary.add_row(name, str(severity[name]))
     console.print(summary)
 
-    highlights = Table(title="Findings to read first", border_style="red", header_style="bold red", expand=True)
+    highlights = Table(title="Findings to read first", border_style="bright_cyan", header_style="bold bright_cyan", expand=True)
     highlights.add_column("#", justify="right", style="cyan")
     highlights.add_column("Severity")
     highlights.add_column("Group")
@@ -526,15 +520,15 @@ def print_dashboard(console: Console, outcome: ScanOutcome, paths: dict[str, str
                 ]
             ),
             title="Reports",
-            border_style="red",
+            border_style="bright_cyan",
         )
     )
-    console.print(Panel(outcome.narratives.get("conclusion", ""), title="Conclusion", border_style="red"))
+    console.print(Panel(outcome.narratives.get("conclusion", ""), title="Conclusion", border_style="bright_cyan"))
 
 
 def print_details(console: Console, outcome: ScanOutcome) -> None:
     """Print every check the engine returned."""
-    table = Table(title="Detailed results", border_style="red", header_style="bold red", expand=True)
+    table = Table(title="Detailed results", border_style="bright_cyan", header_style="bold bright_cyan", expand=True)
     table.add_column("#", justify="right", style="cyan", no_wrap=True)
     table.add_column("Status", no_wrap=True)
     table.add_column("Severity", no_wrap=True)
@@ -599,16 +593,16 @@ def show_about(console: Console) -> None:
         lines.append("Brand artwork file was not found next to the project.")
     else:
         lines.append("Set INFINITYX_BANNER=1 and install chafa or timg for an optional image preview.")
-    console.print(Panel("\n".join(lines), title="About InfinityX", border_style="red"))
+    console.print(Panel("\n".join(lines), title="About InfinityX", border_style="bright_cyan"))
 
 
 def show_reports(console: Console, reports_dir: Path) -> None:
     """List report folders that exist. An empty directory stays empty."""
     folders = list_report_dirs(reports_dir)
     if not folders:
-        console.print(Panel(f"No completed reports in {reports_dir}", title="Reports", border_style="red"))
+        console.print(Panel(f"No completed reports in {reports_dir}", title="Reports", border_style="bright_cyan"))
         return
-    table = Table(title="Previous reports", border_style="red", header_style="bold red", expand=True)
+    table = Table(title="Previous reports", border_style="bright_cyan", header_style="bold bright_cyan", expand=True)
     table.add_column("#", justify="right", style="cyan")
     table.add_column("Folder")
     for number, folder in enumerate(folders[:20], start=1):
@@ -616,7 +610,7 @@ def show_reports(console: Console, reports_dir: Path) -> None:
     console.print(table)
     if not sys.stdin.isatty():
         return
-    entered = console.input(f"[red]Report number, or Enter to go back[/] [white]{_mark(console)}[/] ").strip()
+    entered = console.input(f"[bright_cyan]Report number, or Enter to go back[/] [white]{_mark(console)}[/] ").strip()
     if not entered.isdigit():
         return
     chosen = int(entered)
@@ -635,7 +629,7 @@ def show_reports(console: Console, reports_dir: Path) -> None:
                 ]
             ),
             title="Selected report",
-            border_style="red",
+            border_style="bright_cyan",
         )
     )
 
@@ -654,10 +648,10 @@ def show_settings(console: Console, reports_dir: Path, traceroute: bool) -> bool
                 ]
             ),
             title="Settings",
-            border_style="red",
+            border_style="bright_cyan",
         )
     )
-    entered = console.input(f"[red]Settings[/] [white]{_mark(console)}[/] ").strip().lower()
+    entered = console.input(f"[bright_cyan]Settings[/] [white]{_mark(console)}[/] ").strip().lower()
     if entered == "t":
         return not traceroute
     return traceroute
@@ -681,7 +675,7 @@ def run_result_menu(console: Console, outcome: ScanOutcome, paths: dict[str, str
         if choice == "1":
             print_details(console, outcome)
         elif choice == "2":
-            console.print(Panel(open_report_folder(paths.get("directory", "")), title="Report folder", border_style="red"))
+            console.print(Panel(open_report_folder(paths.get("directory", "")), title="Report folder", border_style="bright_cyan"))
         elif choice == "3":
             print_dashboard(console, outcome, paths)
         else:
@@ -752,7 +746,7 @@ def _scan_from_prompt(console: Console, scan, reports_dir: Path, traceroute: boo
     try:
         normalized = normalize_domain(raw)
     except ValueError as exc:
-        console.print(Panel(str(exc), title="Domain not accepted", border_style="red"))
+        console.print(Panel(str(exc), title="Domain not accepted", border_style="bright_cyan"))
         return "menu"
     return _confirm_and_scan(console, scan, reports_dir, traceroute, normalized.hostname, raw)
 
@@ -763,7 +757,7 @@ def _scan_from_argument(console: Console, scan, reports_dir: Path, traceroute: b
     try:
         normalized = normalize_domain(raw)
     except ValueError as exc:
-        console.print(Panel(str(exc), title="Domain not accepted", border_style="red"))
+        console.print(Panel(str(exc), title="Domain not accepted", border_style="bright_cyan"))
         return "rejected"
     return _confirm_and_scan(console, scan, reports_dir, traceroute, normalized.hostname, raw)
 
@@ -786,7 +780,7 @@ def _confirm_and_scan(
         return "rejected"
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     folder = reports_dir / f"{stamp}_{hostname}"
-    console.print(Panel(f"Reports will be written to\n{folder}", title="Output", border_style="red"))
+    console.print(Panel(f"Reports will be written to\n{folder}", title="Output", border_style="bright_cyan"))
     try:
         outcome, paths = run_one_scan(
             console,

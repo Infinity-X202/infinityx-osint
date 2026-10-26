@@ -1,47 +1,47 @@
-# InfinityX OSINT Scanner
+<div align="center">
 
-Created by Infinity.
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:06b6d4,50:22d3ee,100:d946ef&height=220&section=header&text=INFINITYX&fontSize=78&fontColor=f8fafc&animation=twinkling&fontAlignY=32&desc=OSINT%20Scanner%20%C2%B7%20Created%20by%20Infinity&descAlignY=54&descSize=18" width="100%" alt="InfinityX">
 
-![InfinityX command center](assets/infinityx-banner.jpg)
+<img src="https://readme-typing-svg.demolab.com?font=Orbitron&weight=700&size=24&duration=2600&pause=700&color=22D3EE&center=true&vCenter=true&multiline=true&width=920&height=90&lines=One+authorized+domain.;Fifty+public+checks.;A+report+that+explains+everything." alt="One authorized domain. Fifty public checks. A report that explains everything.">
 
-One authorized domain. Fifty public checks. A black-and-crimson command center in the terminal, then a finished story: who registered the name, where DNS sends it, what the site answers, what the certificate says, and how mail policy is published.
+<br>
 
-InfinityX OSINT Scanner is passive reconnaissance for Kali Linux. You give it a domain you own or are allowed to assess. It gathers public WHOIS, DNS, HTTP, TLS, hosting, and email-authentication data, explains every result, and writes `report.txt`, `report.json`, and `report.html`. It does not guess passwords, exploit services, or scan ports.
+<img src="https://img.shields.io/badge/created%20by-Infinity-d946ef?style=for-the-badge" alt="Created by Infinity">
+<img src="https://img.shields.io/badge/Kali%20Linux-passive%20OSINT-0f172a?style=for-the-badge&logo=kalilinux&logoColor=22d3ee" alt="Kali Linux">
+<img src="https://img.shields.io/badge/Python-3.10%2B-22d3ee?style=for-the-badge&logo=python&logoColor=0f172a" alt="Python 3.10+">
+<img src="https://img.shields.io/badge/checks-50-a78bfa?style=for-the-badge" alt="50 checks">
+<img src="https://img.shields.io/github/stars/Infinity-X202/infinityx-osint?style=for-the-badge&color=22d3ee" alt="Stars">
 
-`python main.py` opens the intelligence center. Use the arrow keys or a number. Leave the domain line empty to return to the menu. In Settings, type `T` to toggle traceroute. The same switch still exists as `--enable-traceroute`.
+<br><br>
 
-Type `AGREE` before a scan starts. That confirmation is required even when you pass `--domain`.
+**Point InfinityX at a domain you own or are allowed to assess.**  
+It reads the public trail, shows the scan live, and writes a report a human can actually understand.
 
-If the terminal can draw images, `INFINITYX_BANNER=1` and `chafa` or `timg` show the brand artwork from the About screen. The scanner does not need that preview.
+`report.txt` · `report.json` · `report.html`
 
-## What the tool does
+</div>
 
-- It validates the domain and rejects localhost, internal names, and non-public addresses.
-- It reads public WHOIS, DNS, HTTP, HTTPS, and the TLS certificate.
-- It asks RIPEstat for ASN data and a geolocation estimate, and it asks crt.sh for certificate-transparency rows.
-- It explains every check: what was found, what it means, how confident the result is, and what an administrator could do next.
-- It writes `report.txt`, `report.json`, and `report.html` in a timestamped folder, with raw outputs and a redacted log.
+---
 
-## What the tool does not do
+<div align="center">
 
-- It does not guess passwords, bypass logins, exploit vulnerabilities, or scan ports.
-- It does not guess DKIM selectors.
-- It does not follow redirects to localhost, private networks, link-local addresses, or cloud metadata services.
-- It does not treat a missing HTTP header, a server banner, or a technology name as proof of a vulnerability.
-- It does not declare a website safe or compromised. Passive collection cannot prove either of those things.
-- Traceroute is off unless you pass `--enable-traceroute` and the `traceroute` command is installed.
+| | What you get |
+|---|---|
+| **01** | WHOIS, registrar, dates, nameservers, and status codes |
+| **02** | DNS from two public resolvers, including mail and DNSSEC signals |
+| **03** | The homepage: status, redirects, title, headers, robots, sitemap |
+| **04** | The live certificate, hostname match, expiry, and transparency logs |
+| **05** | Public IP, ASN, a cautious location estimate, and email policy |
 
-## Requirements
+</div>
 
-- Python 3.10 or newer
-- The Python packages in `requirements.txt` (`rich`, `requests`, `dnspython`, `cryptography`)
-- Optional Kali packages: `whois`, `traceroute`, `whatweb`
+InfinityX does not guess passwords, exploit services, or scan ports. A banner or a missing header is an observation, not proof of a vulnerability. The report never declares a site safe or compromised.
 
-The intended system is Kali Linux. The same Python code can run elsewhere. Optional commands that are not installed are marked `SKIPPED`.
+Type `AGREE` before a scan. That question still appears when you pass `--domain`.
 
-## Install
+## Launch
 
-Run these commands from the project directory, as a normal user. Do not use `sudo su`. `install.sh` refuses to run as root, and the files are not in your home directory until you clone or `cd` into the project.
+Run this as a normal user, from the project folder. Do not use `sudo su`.
 
 ```bash
 git clone https://github.com/Infinity-X202/infinityx-osint.git
@@ -52,53 +52,46 @@ source .venv/bin/activate
 python main.py
 ```
 
-If `install.sh` says `No such file or directory`, you are not in the project folder. `pwd` should end in `infinityx-osint`.
+If `install.sh` says `No such file or directory`, you are not inside `infinityx-osint`.
 
-`install.sh` lists the system packages and installs them only after you answer `y`. It refuses to run as root. Create the virtual environment as a normal user.
-
-A direct launch, which still asks for authorization:
+`install.sh` shows the package list and installs system packages only after you answer `y`.
 
 ```bash
 python main.py --domain example.com
-```
-
-Help and version:
-
-```bash
 python main.py --help
-python main.py --version
-```
-
-Traceroute, only when you are authorized to send those probes:
-
-```bash
 python main.py --domain example.com --enable-traceroute
 ```
 
-## Reports
+## What lands on disk
 
 Each scan creates `reports/<timestamp>_<domain>/`:
 
-- `report.txt` — full written analysis
-- `report.json` — every check and finding
-- `report.html` — dashboard with summary cards, filters, and expandable details
-- `raw_results/` — original WHOIS, HTTP, certificate, and lookup output
-- `logs/scan.log` — execution log with secret-like values redacted
+- `report.txt` — the full written analysis
+- `report.json` — every check, for another tool to read
+- `report.html` — cards, filters, and expandable evidence
+- `raw_results/` — original public responses
+- `logs/scan.log` — the run log, with secret-like values removed
 
-## Checks
+## The fifty checks
 
-The 50 checks are grouped as domain and WHOIS, DNS, website and HTTP, TLS, network and infrastructure, and email policy. Overlapping data, such as one WHOIS conversation or one homepage response, is fetched once and labeled as shared evidence.
+Domain and WHOIS, DNS, the website, TLS, network identity, and email policy. Shared lookups are fetched once and labeled as the same evidence, not as a second discovery.
 
-## Safety notes
+## Boundaries
 
-HTTP connections are pinned to an address that both 1.1.1.1 and 8.8.8.8 classified as public. Environment proxies are ignored so a proxy cannot bypass that check. Response bodies are capped. Cookie and authorization header values are not stored. System proxy variables and API keys are not required and are not written into reports.
+Connections stay on public addresses. Redirects to localhost, private networks, link-local addresses, and metadata services are refused. DKIM selectors are not guessed. Traceroute stays off unless you pass `--enable-traceroute` and the command exists. Geolocation is an estimate and is often wrong for CDN and anycast addresses.
 
-Geolocation is an estimate and is often wrong for CDN and anycast addresses. Certificate-transparency names can be historical.
+Optional Kali packages: `whois`, `traceroute`, `whatweb`. If one is missing, that check is `SKIPPED`.
 
 ## Tests
-
-From the project directory, with the virtual environment active:
 
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+<div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:d946ef,100:06b6d4&height=120&section=footer&reversal=false&animation=twinkling" width="100%" alt="">
+
+**Created by Infinity**
+
+</div>
